@@ -1,13 +1,16 @@
-import React, { SyntheticEvent, useState } from 'react'
-import { FaUser, FaEye, FaEyeSlash } from "react-icons/fa";
+import React, { SyntheticEvent, useEffect, useState } from 'react'
+import { FaUser, FaEye, FaEyeSlash, FaGoogle } from "react-icons/fa";
 import { DefaultHeader } from '../../../components';
 import { useCookies } from 'react-cookie';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useGetToken } from '../../../hooks/useGetToken';
+import { useAuthContext } from '../../../contexts';
 
 
 const LoginPage = () => {
-
+    const access_token = useGetToken();
+    const authContext = useAuthContext();
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -15,24 +18,52 @@ const LoginPage = () => {
     const handleTogglePassword = () => setShowPassword(!showPassword);
     const navigate = useNavigate();
 
+    const loginWithGoogle = async (event: SyntheticEvent) => {
+        event.preventDefault();
+        try {
+            await axios.post<any>("http://localhost:3000/api/auth/google", {})
+                .then((res) => {
+                    console.log(res.data);
+                    window.location.href = res.data.url;
+                })
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
     const handleSubmit = async (event: SyntheticEvent) => {
         event.preventDefault();
         try {
             await axios.post<any>("http://localhost:3000/api/auth/login", {
                 email, password
             }).then((res) => {
-                console.log(res.data)
                 setCookies("access_token", res.data.accessToken);
-                localStorage.setItem("userId", res.data.userId);
-                alert("Login successfully");
-                navigate("/home");
+                authContext.login({
+                    email: res.data.email,
+                    role: res.data.role,
+                    avatar: res.data.avatar
+                });
+                navigate("/", { replace: true });
             })
         } catch (error) {
             console.log(error)
-            alert("Something went wrong")
         }
     }
 
+    // const checkAuthorization = async () => {
+    //     try {
+    //         console.log(access_token);
+    //         if (access_token) {
+    //             navigate("/home");
+    //         }
+    //     } catch (error) {
+    //         console.log(error);
+    //     }
+    // }
+
+    // useEffect(() => {
+    //     checkAuthorization();
+    // });
     return (
         <>
             <DefaultHeader />
@@ -41,6 +72,15 @@ const LoginPage = () => {
                     <h2 className='text-2xl font-semibold'>
                         Login to your account
                     </h2>
+
+                    <div className='mt-2 flex justify-center items-center gap-8'>
+                        <p className='font-semibold'>Or login with:</p>
+
+                        <button className='flex items-center justify-center rounded-full bg-orange-700 text-white h-7 w-7 cursor-pointer'
+                            onClick={loginWithGoogle}>
+                            <FaGoogle />
+                        </button>
+                    </div>
 
                     <form onSubmit={handleSubmit} className='mt-6 space-y-4 w-full'>
                         <div>
@@ -58,12 +98,12 @@ const LoginPage = () => {
                         <div>
                             <label htmlFor="password" className='text-xs text-gray-600'>Password</label>
                             <div className='flex items-center relative'>
-                                <input type={showPassword ? 'password' : 'text'}
+                                <input type={showPassword ? 'text' : 'password'}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder='Enter your password' id="password" name="password"
                                     className='w-full mt-1 border-0 rounded-md shadow-sm ring-1 ring-inset ring-gray-300 px-2 py-1 text-gray-400' required />
                                 {
-                                    !showPassword
+                                    showPassword
                                         ? <FaEye className='absolute right-2 cursor-pointer' onClick={handleTogglePassword} />
                                         : <FaEyeSlash className='absolute right-2 cursor-pointer' onClick={handleTogglePassword} />
                                 }
